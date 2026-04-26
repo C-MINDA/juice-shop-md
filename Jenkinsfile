@@ -6,7 +6,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 echo 'Cloning repository...'
-                git 'https://github.com/YOUR-USERNAME/juice-shop.git'
+                git 'https://github.com/C-MINDA/juice-shop.git'
             }
         }
 
