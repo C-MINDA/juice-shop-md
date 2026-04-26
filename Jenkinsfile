@@ -67,8 +67,8 @@ pipeline {
         always {
             echo 'Cleaning up environment...'
             // Stop and remove the test container to free up resources
-            // sh 'docker stop juice-shop-staging || true'
-            // sh 'docker rm juice-shop-staging || true'
+            sh 'docker stop juice-shop-staging || true'
+            sh 'docker rm juice-shop-staging || true'
         }
         success {
             echo 'Pipeline completed successfully! Security scans are ready for review.'
