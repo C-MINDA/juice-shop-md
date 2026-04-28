@@ -2,79 +2,96 @@ pipeline {
     agent any
 
     options {
-        // Keeps the console output clean and limits the number of old builds
-        buildDiscarder(logRotator(numToKeepStr: '3'))
-        timeout(time: 1, unit: 'HOURS') 
+        buildDiscarder(logRotator(numToKeepStr: '5', daysToKeepStr: '10'))
+        disableConcurrentBuilds() // Avoid Docker port 3000 conflicts
+        timeout(time: 1, unit: 'HOURS') // Safety cutoff
+        timestamps()
+    }
+
+    environment {
+        APP_NAME = 'Juice-Vault'
+        SCANNER_HOME = tool 'SonarQube-Scanner'
     }
 
     stages {
-        stage('🛠️ Build Image') {
+        stage('🏁 Initialize') {
             steps {
-                echo 'Building the OWASP Juice Shop Docker image...'
-                // Based on Project Requirement [3], we use the Docker version
-                sh 'docker build -t juice-shop:latest .'
+                script {
+                    currentBuild.displayName = "#${env.BUILD_NUMBER} - ${env.APP_NAME}"
+                    currentBuild.description = "Security Analysis Pipeline"
+                }
+                echo "=== Starting DevSecOps Pipeline for ${env.APP_NAME} ==="
             }
         }
 
         stage('🔍 SAST (Static Analysis)') {
             steps {
-                echo 'Running Static Application Security Testing...'
+                echo '=== Stage: SAST Analysis (Team Member 4) ==='
                 /* 
-                   TEAM MEMBER 4 (SAST Specialist) ACTION:
-                   Insert SonarQube or ESLint security scan commands here.
-                   Requirement: Identify 2 OWASP Top 10 vulnerabilities [4].
+                   Implementation Strategy (Lab 6B):
+                   Run SonarQube right after checkout to find code flaws 
+                   before building images
                 */
-                echo 'SAST Scan Placeholder - To be implemented by SAST Specialist.'
+            }
+        }
+
+        stage('🛠️ Build Image') {
+            steps {
+                echo '=== Stage: Build Application Image ==='
+                // Build the Docker version of Juice Shop
+                sh 'docker build -t juice-shop:latest .'
             }
         }
 
         stage('📦 SCA (Dependency Scan)') {
             steps {
-                echo 'Running Software Composition Analysis...'
+                echo '=== Stage: SCA Scan (Team Member 3) ==='
                 /* 
-                   TEAM MEMBER 3 (SCA Specialist) ACTION:
-                   Insert OWASP Dependency-Check or Retire.js commands here.
-                   Requirement: SCA should trigger during the build phase [2, 5].
+                   Implementation Strategy (Lab 7C):
+                   Now that the image is built, use Trivy to scan for 
+                   vulnerabilities in both the OS and app libraries
                 */
-                echo 'SCA Scan Placeholder - To be implemented by SCA Specialist.'
             }
         }
 
         stage('🚀 Deploy to Staging') {
             steps {
-                echo 'Deploying application for dynamic testing...'
-                // Spin up the container so the DAST tool has a live target to scan
+                echo '=== Stage: Deployment for DAST ==='
+                // Spin up the live app for dynamic testing
                 sh 'docker run -d --name juice-shop-staging -p 3000:3000 juice-shop:latest'
-                // Give the app a few seconds to fully start up
-                sleep 20
+                sleep 20 // Allow app to initialize
             }
         }
 
         stage('🛡️ DAST (Dynamic Analysis)') {
             steps {
-                echo 'Running Dynamic Application Security Testing...'
+                echo '=== Stage: DAST Scan (Team Member 2) ==='
                 /* 
-                   TEAM MEMBER 2 (DAST Specialist) ACTION:
-                   Insert OWASP ZAP or Nuclei commands here.
-                   Requirement: Scan the live app at http://localhost:3000 [2, 6].
+                   Implementation Strategy (Lab 8B):
+                   Run ZAP, Nikto, or SQLMap against http://localhost:3000
                 */
-                echo 'DAST Scan Placeholder - To be implemented by DAST Specialist.'
             }
         }
     }
 
     post {
         always {
-            echo 'Cleaning up environment...'
-            // Stop and remove the test container to free up resources
+            echo '🧹 Performing Post-Build Cleanup...'
+            // Best Practice: Always remove containers to free local resources
             sh 'docker stop juice-shop-staging || true'
             sh 'docker rm juice-shop-staging || true'
+            
+            script {
+                // Log completion time for the project report
+                def duration = currentBuild.durationString.replace(' and counting', '')
+                echo "⏱ Pipeline completed in ${duration}"
+            }
         }
         success {
-            echo 'Pipeline completed successfully! Security scans are ready for review.'
+            echo '🎉 Pipeline Succeeded - Security Reports are Ready'
         }
         failure {
-            echo 'Pipeline failed. Check the logs for vulnerability blocks or build errors.'
+            echo '💥 Pipeline Failed - Review Scan Results for Vulnerabilities'
         }
     }
 }
